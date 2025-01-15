@@ -1,0 +1,22 @@
+networks:
+  video_generation:
+    external: true
+    name: Video Generation
+services:
+  tiktok-api:
+    build: .
+    networks:
+      video_generation:
+        ipv4_address: 10.20.0.13
+    ports:
+      - 8770:8048
+    restart: unless-stopped
+    volumes:
+      - tiktok-uploader_tiktok-api_sounds:/app/sounds
+      - tiktok-uploader_cookies:/app/CookiesDir
+version: '3.8'
+volumes:
+  tiktok-uploader_tiktok-api_sounds:
+    name: tiktok-uploader_tiktok-api_sounds
+  tiktok-uploader_cookies:
+    name: tiktok-uploader_cookies
