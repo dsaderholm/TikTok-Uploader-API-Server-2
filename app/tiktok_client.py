@@ -11,24 +11,23 @@ class TikTokClient:
     def __init__(self, username):
         self.username = username
         self.tiktok_uploader_path = '/app/TiktokAutoUploader'
-        self.videos_dir = os.path.join(self.tiktok_uploader_path, 'VideosDirPath')  
-        self.cookies_dir = os.path.join(self.tiktok_uploader_path, 'CookiesDir')  
+        self.videos_dir = 'VideosDirPath'  # Changed to relative path
+        self.cookies_dir = 'CookiesDir'    # Changed to relative path
         
-        # Ensure required directories exist
-        os.makedirs(self.videos_dir, exist_ok=True)
-        os.makedirs(self.cookies_dir, exist_ok=True)
+        # Create directories in TikTok uploader directory
+        os.makedirs(os.path.join(self.tiktok_uploader_path, self.videos_dir), exist_ok=True)
+        os.makedirs(os.path.join(self.tiktok_uploader_path, self.cookies_dir), exist_ok=True)
 
         # Log important paths
         logger.info(f"TikTok Uploader Path: {self.tiktok_uploader_path}")
-        logger.info(f"Videos Directory: {self.videos_dir}")
-        logger.info(f"Cookies Directory: {self.cookies_dir}")
+        logger.info(f"Videos Directory: {os.path.join(self.tiktok_uploader_path, self.videos_dir)}")
+        logger.info(f"Cookies Directory: {os.path.join(self.tiktok_uploader_path, self.cookies_dir)}")
 
-        # Setup simple config.txt with relative paths
+        # Setup config.txt with relative paths
         config_path = os.path.join(self.tiktok_uploader_path, 'config.txt')
         logger.info("Creating config.txt")
         with open(config_path, 'w') as f:
-            f.write('videos_dir=VideosDirPath\n')
-            f.write('cookies_dir=CookiesDir\n')
+            f.write('videos_dir=VideosDirPath\ncookies_dir=CookiesDir')
         
         logger.info(f"Config contents:")
         with open(config_path, 'r') as f:
@@ -36,12 +35,12 @@ class TikTokClient:
 
         # Copy and rename cookie file from mounted volume to TikTok uploader's CookiesDir
         source_cookie = f'/app/CookiesDir/tiktok_session-{username}.cookie'
-        dest_cookie = os.path.join(self.cookies_dir, f'tiktok_session-{username}')
+        dest_cookie = os.path.join(self.tiktok_uploader_path, self.cookies_dir, f'tiktok_session-{username}')
         
         if os.path.exists(source_cookie):
             logger.info(f"Copying cookie from {source_cookie} to {dest_cookie}")
             shutil.copy2(source_cookie, dest_cookie)
-            # Read and log first few bytes of cookie file to verify content
+            # Read and log first few bytes of cookie file
             with open(dest_cookie, 'rb') as f:
                 content = f.read(100)
                 logger.info(f"First 100 bytes of cookie file: {content}")
@@ -56,11 +55,11 @@ class TikTokClient:
             logger.info(f"Working directory: {self.tiktok_uploader_path}")
             
             # Log contents of important directories
-            logger.info(f"Contents of Videos directory: {os.listdir(self.videos_dir)}")
-            logger.info(f"Contents of Cookies directory: {os.listdir(self.cookies_dir)}")
+            logger.info(f"Contents of Videos directory: {os.listdir(os.path.join(self.tiktok_uploader_path, self.videos_dir))}")
+            logger.info(f"Contents of Cookies directory: {os.listdir(os.path.join(self.tiktok_uploader_path, self.cookies_dir))}")
             
             # Log specific cookie file info
-            cookie_path = os.path.join(self.cookies_dir, f'tiktok_session-{self.username}')
+            cookie_path = os.path.join(self.tiktok_uploader_path, self.cookies_dir, f'tiktok_session-{self.username}')
             if os.path.exists(cookie_path):
                 logger.info(f"Cookie file exists at {cookie_path}, size: {os.path.getsize(cookie_path)} bytes")
                 with open(cookie_path, 'rb') as f:
@@ -68,12 +67,6 @@ class TikTokClient:
                     logger.info(f"First 100 bytes of cookie file: {content}")
             else:
                 logger.error(f"Cookie file not found at {cookie_path}")
-
-            # Get absolute path to python3
-            python_path = subprocess.check_output(['which', 'python3']).decode().strip()
-            logger.info(f"Using Python path: {python_path}")
-            
-            command[0] = python_path  # Replace 'python3' with full path
             
             result = subprocess.run(
                 command,
@@ -112,7 +105,7 @@ class TikTokClient:
         try:
             # Copy video to TikTok uploader's videos directory
             video_filename = Path(video_path).name
-            final_video_path = os.path.join(self.videos_dir, video_filename)
+            final_video_path = os.path.join(self.tiktok_uploader_path, self.videos_dir, video_filename)
             
             logger.info(f"Copying video from {video_path} to {final_video_path}")
             with open(video_path, 'rb') as src, open(final_video_path, 'wb') as dst:
