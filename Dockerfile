@@ -77,7 +77,7 @@ COPY app/ ./app/
 COPY sounds/ ./sounds/
 
 # Create necessary directories
-RUN mkdir -p /app/VideosDirPath /app/CookiesDir
+RUN mkdir -p /app/TiktokAutoUploader/VideosDirPath /app/CookiesDir
 
 # Set up Xvfb
 RUN printf '#!/bin/bash\nXvfb :99 -screen 0 1024x768x16 &\nexec "$@"' > /entrypoint.sh && \
