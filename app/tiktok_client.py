@@ -12,7 +12,7 @@ class TikTokClient:
         self.username = username
         self.tiktok_uploader_path = '/app/TiktokAutoUploader'
         self.videos_dir = os.path.join(self.tiktok_uploader_path, 'VideosDirPath')  
-        self.cookies_dir = os.path.join(self.tiktok_uploader_path, 'CookiesDir')  # Updated to use TikTok uploader's CookiesDir
+        self.cookies_dir = os.path.join(self.tiktok_uploader_path, 'CookiesDir')  
         
         # Ensure required directories exist
         os.makedirs(self.videos_dir, exist_ok=True)
@@ -22,21 +22,29 @@ class TikTokClient:
         logger.info(f"TikTok Uploader Path: {self.tiktok_uploader_path}")
         logger.info(f"Videos Directory: {self.videos_dir}")
         logger.info(f"Cookies Directory: {self.cookies_dir}")
-        
-        # Check and create config.txt in the correct location
-        config_path = os.path.join(self.tiktok_uploader_path, 'config.txt')
-        if not os.path.exists(config_path):
-            logger.info("Creating config.txt")
-            with open(config_path, 'w') as f:
-                f.write('videos_dir=VideosDirPath\ncookies_dir=CookiesDir\n')
 
-        # Copy cookie file from mounted volume to TikTok uploader's CookiesDir
-        source_cookie = '/app/CookiesDir/tiktok_session-{}.cookie'.format(username)
+        # Setup proper config.txt
+        config_path = os.path.join(self.tiktok_uploader_path, 'config.txt')
+        logger.info("Creating config.txt")
+        with open(config_path, 'w') as f:
+            f.write(f'videos_dir={os.path.join(self.tiktok_uploader_path, "VideosDirPath")}\n')
+            f.write(f'cookies_dir={os.path.join(self.tiktok_uploader_path, "CookiesDir")}\n')
+        
+        logger.info(f"Config contents:")
+        with open(config_path, 'r') as f:
+            logger.info(f.read())
+
+        # Copy and rename cookie file from mounted volume to TikTok uploader's CookiesDir
+        source_cookie = f'/app/CookiesDir/tiktok_session-{username}.cookie'
         dest_cookie = os.path.join(self.cookies_dir, f'tiktok_session-{username}')
         
         if os.path.exists(source_cookie):
             logger.info(f"Copying cookie from {source_cookie} to {dest_cookie}")
             shutil.copy2(source_cookie, dest_cookie)
+            # Read and log first few bytes of cookie file to verify content
+            with open(dest_cookie, 'rb') as f:
+                content = f.read(100)
+                logger.info(f"First 100 bytes of cookie file: {content}")
         else:
             logger.error(f"Cookie file not found: {source_cookie}")
             raise Exception(f"Cookie file not found for user {username}")
@@ -47,16 +55,27 @@ class TikTokClient:
             logger.info(f"Running command: {' '.join(command)}")
             logger.info(f"Working directory: {self.tiktok_uploader_path}")
             
-            # Log the contents of important directories
+            # Log contents of important directories
             logger.info(f"Contents of Videos directory: {os.listdir(self.videos_dir)}")
             logger.info(f"Contents of Cookies directory: {os.listdir(self.cookies_dir)}")
+            
+            # Log specific cookie file info
+            cookie_path = os.path.join(self.cookies_dir, f'tiktok_session-{self.username}')
+            if os.path.exists(cookie_path):
+                logger.info(f"Cookie file exists at {cookie_path}, size: {os.path.getsize(cookie_path)} bytes")
+                with open(cookie_path, 'rb') as f:
+                    content = f.read(100)
+                    logger.info(f"First 100 bytes of cookie file: {content}")
+            else:
+                logger.error(f"Cookie file not found at {cookie_path}")
             
             result = subprocess.run(
                 command,
                 cwd=self.tiktok_uploader_path,
                 check=True,
                 capture_output=True,
-                text=True
+                text=True,
+                env={"PYTHONPATH": self.tiktok_uploader_path}
             )
             
             logger.info(f"Command output: {result.stdout}")
