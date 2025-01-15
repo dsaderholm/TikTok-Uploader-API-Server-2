@@ -7,7 +7,7 @@ services:
     build: .
     networks:
       video_generation:
-        ipv4_address: 10.20.0.13
+        ipv4_address: 10.20.0.16
     ports:
       - 8770:8048
     restart: unless-stopped
