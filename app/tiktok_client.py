@@ -68,6 +68,12 @@ class TikTokClient:
                     logger.info(f"First 100 bytes of cookie file: {content}")
             else:
                 logger.error(f"Cookie file not found at {cookie_path}")
+
+            # Get absolute path to python3
+            python_path = subprocess.check_output(['which', 'python3']).decode().strip()
+            logger.info(f"Using Python path: {python_path}")
+            
+            command[0] = python_path  # Replace 'python' with full path
             
             result = subprocess.run(
                 command,
@@ -75,7 +81,11 @@ class TikTokClient:
                 check=True,
                 capture_output=True,
                 text=True,
-                env={"PYTHONPATH": self.tiktok_uploader_path}
+                env={
+                    "PYTHONPATH": self.tiktok_uploader_path,
+                    "PATH": os.environ.get("PATH", ""),
+                    "DISPLAY": os.environ.get("DISPLAY", ":99")
+                }
             )
             
             logger.info(f"Command output: {result.stdout}")
@@ -115,7 +125,7 @@ class TikTokClient:
                 raise Exception(f"Video file not found at {final_video_path}")
 
             command = [
-                'python',
+                'python3',  # Changed from 'python' to 'python3'
                 'cli.py',
                 'upload',
                 '--users', self.username,
