@@ -11,39 +11,35 @@ class TikTokClient:
     def __init__(self, username):
         self.username = username
         self.tiktok_uploader_path = '/app/TiktokAutoUploader'
-        self.videos_dir = os.path.join(self.tiktok_uploader_path, 'VideosDirPath')  # Changed to match TikTok uploader's expected path
-        self.cookies_dir = '/app/CookiesDir'
+        self.videos_dir = os.path.join(self.tiktok_uploader_path, 'VideosDirPath')  
+        self.cookies_dir = os.path.join(self.tiktok_uploader_path, 'CookiesDir')  # Updated to use TikTok uploader's CookiesDir
         
         # Ensure required directories exist
         os.makedirs(self.videos_dir, exist_ok=True)
+        os.makedirs(self.cookies_dir, exist_ok=True)
 
         # Log important paths
         logger.info(f"TikTok Uploader Path: {self.tiktok_uploader_path}")
         logger.info(f"Videos Directory: {self.videos_dir}")
         logger.info(f"Cookies Directory: {self.cookies_dir}")
         
-        # Log cookie files
-        if os.path.exists(self.cookies_dir):
-            logger.info(f"Available cookie files: {os.listdir(self.cookies_dir)}")
-        else:
-            logger.error(f"Cookies directory does not exist: {self.cookies_dir}")
-
-        # Copy config.txt if it doesn't exist
+        # Check and create config.txt in the correct location
         config_path = os.path.join(self.tiktok_uploader_path, 'config.txt')
         if not os.path.exists(config_path):
             logger.info("Creating config.txt")
             with open(config_path, 'w') as f:
-                f.write(f'videos_dir=VideosDirPath\ncookies_dir={self.cookies_dir}\n')
+                f.write('videos_dir=VideosDirPath\ncookies_dir=CookiesDir\n')
 
-        # Copy cookie file to correct name format if needed
-        cookie_file = f'tiktok_session-{username}.cookie'
-        if cookie_file in os.listdir(self.cookies_dir):
-            correct_name = f'tiktok_session-{username}'
-            src = os.path.join(self.cookies_dir, cookie_file)
-            dst = os.path.join(self.cookies_dir, correct_name)
-            if not os.path.exists(dst):
-                logger.info(f"Copying cookie file to correct name: {correct_name}")
-                shutil.copy2(src, dst)
+        # Copy cookie file from mounted volume to TikTok uploader's CookiesDir
+        source_cookie = '/app/CookiesDir/tiktok_session-{}.cookie'.format(username)
+        dest_cookie = os.path.join(self.cookies_dir, f'tiktok_session-{username}')
+        
+        if os.path.exists(source_cookie):
+            logger.info(f"Copying cookie from {source_cookie} to {dest_cookie}")
+            shutil.copy2(source_cookie, dest_cookie)
+        else:
+            logger.error(f"Cookie file not found: {source_cookie}")
+            raise Exception(f"Cookie file not found for user {username}")
 
     def _run_tiktok_command(self, command):
         """Run a TikTok uploader CLI command"""
@@ -51,10 +47,10 @@ class TikTokClient:
             logger.info(f"Running command: {' '.join(command)}")
             logger.info(f"Working directory: {self.tiktok_uploader_path}")
             
-            # First, check if we're in the right directory and cli.py exists
-            if not os.path.exists(os.path.join(self.tiktok_uploader_path, 'cli.py')):
-                raise Exception(f"cli.py not found in {self.tiktok_uploader_path}")
-
+            # Log the contents of important directories
+            logger.info(f"Contents of Videos directory: {os.listdir(self.videos_dir)}")
+            logger.info(f"Contents of Cookies directory: {os.listdir(self.cookies_dir)}")
+            
             result = subprocess.run(
                 command,
                 cwd=self.tiktok_uploader_path,

@@ -76,8 +76,10 @@ RUN pip install --no-cache-dir -r /app/TiktokAutoUploader/requirements.txt
 COPY app/ ./app/
 COPY sounds/ ./sounds/
 
-# Create necessary directories
-RUN mkdir -p /app/TiktokAutoUploader/VideosDirPath /app/CookiesDir
+# Create necessary directories in TikTok uploader directory
+RUN mkdir -p /app/TiktokAutoUploader/VideosDirPath \
+    /app/TiktokAutoUploader/CookiesDir \
+    /app/CookiesDir
 
 # Set up Xvfb
 RUN printf '#!/bin/bash\nXvfb :99 -screen 0 1024x768x16 &\nexec "$@"' > /entrypoint.sh && \
