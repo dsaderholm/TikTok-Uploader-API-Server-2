@@ -23,12 +23,12 @@ class TikTokClient:
         logger.info(f"Videos Directory: {self.videos_dir}")
         logger.info(f"Cookies Directory: {self.cookies_dir}")
 
-        # Setup proper config.txt
+        # Setup simple config.txt with relative paths
         config_path = os.path.join(self.tiktok_uploader_path, 'config.txt')
         logger.info("Creating config.txt")
         with open(config_path, 'w') as f:
-            f.write(f'videos_dir={os.path.join(self.tiktok_uploader_path, "VideosDirPath")}\n')
-            f.write(f'cookies_dir={os.path.join(self.tiktok_uploader_path, "CookiesDir")}\n')
+            f.write('videos_dir=VideosDirPath\n')
+            f.write('cookies_dir=CookiesDir\n')
         
         logger.info(f"Config contents:")
         with open(config_path, 'r') as f:
@@ -73,7 +73,7 @@ class TikTokClient:
             python_path = subprocess.check_output(['which', 'python3']).decode().strip()
             logger.info(f"Using Python path: {python_path}")
             
-            command[0] = python_path  # Replace 'python' with full path
+            command[0] = python_path  # Replace 'python3' with full path
             
             result = subprocess.run(
                 command,
@@ -125,7 +125,7 @@ class TikTokClient:
                 raise Exception(f"Video file not found at {final_video_path}")
 
             command = [
-                'python3',  # Changed from 'python' to 'python3'
+                'python3',
                 'cli.py',
                 'upload',
                 '--users', self.username,
