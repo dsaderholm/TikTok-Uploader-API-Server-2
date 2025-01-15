@@ -16,9 +16,27 @@ class TikTokClient:
         # Ensure required directories exist
         os.makedirs(self.videos_dir, exist_ok=True)
 
+        # Log important paths
+        logger.info(f"TikTok Uploader Path: {self.tiktok_uploader_path}")
+        logger.info(f"Videos Directory: {self.videos_dir}")
+        logger.info(f"Cookies Directory: {self.cookies_dir}")
+        
+        # Log cookie files
+        if os.path.exists(self.cookies_dir):
+            logger.info(f"Available cookie files: {os.listdir(self.cookies_dir)}")
+        else:
+            logger.error(f"Cookies directory does not exist: {self.cookies_dir}")
+
     def _run_tiktok_command(self, command):
         """Run a TikTok uploader CLI command"""
         try:
+            logger.info(f"Running command: {' '.join(command)}")
+            logger.info(f"Working directory: {self.tiktok_uploader_path}")
+            
+            # First, check if we're in the right directory and cli.py exists
+            if not os.path.exists(os.path.join(self.tiktok_uploader_path, 'cli.py')):
+                raise Exception(f"cli.py not found in {self.tiktok_uploader_path}")
+
             result = subprocess.run(
                 command,
                 cwd=self.tiktok_uploader_path,
@@ -26,10 +44,15 @@ class TikTokClient:
                 capture_output=True,
                 text=True
             )
+            
+            logger.info(f"Command output: {result.stdout}")
             return result.stdout
+            
         except subprocess.CalledProcessError as e:
-            logger.error(f"TikTok command failed: {e.stderr}")
-            raise Exception(f"TikTok upload failed: {e.stderr}")
+            logger.error(f"Command failed with exit code {e.returncode}")
+            logger.error(f"Standard error: {e.stderr}")
+            logger.error(f"Standard output: {e.stdout}")
+            raise Exception(f"TikTok upload failed: {e.stderr}\nOutput: {e.stdout}")
         except Exception as e:
             logger.error(f"Error running TikTok command: {str(e)}")
             raise
@@ -48,8 +71,15 @@ class TikTokClient:
             video_filename = Path(video_path).name
             final_video_path = os.path.join(self.videos_dir, video_filename)
             
+            logger.info(f"Copying video from {video_path} to {final_video_path}")
             with open(video_path, 'rb') as src, open(final_video_path, 'wb') as dst:
                 dst.write(src.read())
+
+            # Verify the video file exists and log its size
+            if os.path.exists(final_video_path):
+                logger.info(f"Video file size: {os.path.getsize(final_video_path)} bytes")
+            else:
+                raise Exception(f"Video file not found at {final_video_path}")
 
             command = [
                 'python',
