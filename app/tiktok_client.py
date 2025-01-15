@@ -2,6 +2,7 @@ import sys
 import os
 import subprocess
 import logging
+import shutil
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -10,7 +11,7 @@ class TikTokClient:
     def __init__(self, username):
         self.username = username
         self.tiktok_uploader_path = '/app/TiktokAutoUploader'
-        self.videos_dir = '/app/VideosDirPath'
+        self.videos_dir = os.path.join(self.tiktok_uploader_path, 'VideosDirPath')  # Changed to match TikTok uploader's expected path
         self.cookies_dir = '/app/CookiesDir'
         
         # Ensure required directories exist
@@ -26,6 +27,23 @@ class TikTokClient:
             logger.info(f"Available cookie files: {os.listdir(self.cookies_dir)}")
         else:
             logger.error(f"Cookies directory does not exist: {self.cookies_dir}")
+
+        # Copy config.txt if it doesn't exist
+        config_path = os.path.join(self.tiktok_uploader_path, 'config.txt')
+        if not os.path.exists(config_path):
+            logger.info("Creating config.txt")
+            with open(config_path, 'w') as f:
+                f.write(f'videos_dir=VideosDirPath\ncookies_dir={self.cookies_dir}\n')
+
+        # Copy cookie file to correct name format if needed
+        cookie_file = f'tiktok_session-{username}.cookie'
+        if cookie_file in os.listdir(self.cookies_dir):
+            correct_name = f'tiktok_session-{username}'
+            src = os.path.join(self.cookies_dir, cookie_file)
+            dst = os.path.join(self.cookies_dir, correct_name)
+            if not os.path.exists(dst):
+                logger.info(f"Copying cookie file to correct name: {correct_name}")
+                shutil.copy2(src, dst)
 
     def _run_tiktok_command(self, command):
         """Run a TikTok uploader CLI command"""
@@ -67,7 +85,7 @@ class TikTokClient:
             dict: Upload result
         """
         try:
-            # Copy video to videos directory
+            # Copy video to TikTok uploader's videos directory
             video_filename = Path(video_path).name
             final_video_path = os.path.join(self.videos_dir, video_filename)
             
