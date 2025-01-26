@@ -38,13 +38,13 @@ def upload_video():
 
         # Get parameters
         description = request.form.get('description', '')
-        username = request.form.get('username')
+        accountname = request.form.get('accountname')
         hashtags = request.form.get('hashtags', '').split(',') if request.form.get('hashtags') else []
         sound_name = request.form.get('sound_name')
         sound_aud_vol = request.form.get('sound_aud_vol', 'mix')
 
-        if not username:
-            return jsonify({'error': 'Username is required'}), 400
+        if not accountname:
+            return jsonify({'error': 'Account name is required'}), 400
 
         # Save video temporarily
         temp_video = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
@@ -72,7 +72,7 @@ def upload_video():
             caption += ' ' + ' '.join(f'#{tag.strip()}' for tag in hashtags if tag.strip())
 
         # Upload to TikTok
-        client = TikTokClient(username)
+        client = TikTokClient(accountname)
         result = client.upload_video(final_video_path, caption)
         
         return jsonify({
@@ -95,4 +95,4 @@ def upload_video():
                 logger.error(f"Error cleaning up {temp_file}: {str(e)}")
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8048)
+    app.run(host='0.0.0.0', port=8000)
