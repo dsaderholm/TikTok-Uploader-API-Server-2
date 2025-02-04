@@ -28,6 +28,12 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def clean_string(s):
+    """Remove surrounding quotes from string"""
+    if isinstance(s, str):
+        return s.strip("'\"")
+    return s
+
 @app.route('/upload', methods=['POST'])
 def upload_video():
     logger.info("Received upload request")
@@ -48,12 +54,12 @@ def upload_video():
             logger.error(f"Invalid video file: {video.filename if video else 'None'}")
             return jsonify({'error': 'Invalid video file'}), 400
 
-        # Get parameters
-        description = request.form.get('description', '')
-        accountname = request.form.get('accountname')
-        hashtags = request.form.get('hashtags', '').split(',') if request.form.get('hashtags') else []
-        sound_name = request.form.get('sound_name')
-        sound_aud_vol = request.form.get('sound_aud_vol', 'mix')
+        # Get parameters and clean them
+        description = clean_string(request.form.get('description', ''))
+        accountname = clean_string(request.form.get('accountname'))
+        hashtags = [clean_string(tag) for tag in request.form.get('hashtags', '').split(',') if tag.strip()]
+        sound_name = clean_string(request.form.get('sound_name'))
+        sound_aud_vol = clean_string(request.form.get('sound_aud_vol', 'mix'))
 
         if not accountname:
             logger.error("No account name provided")
@@ -70,9 +76,18 @@ def upload_video():
         if sound_name:
             processor = AudioProcessor()
             sound_path = f'/app/sounds/{sound_name}.mp3'
+            logger.info(f"Looking for sound file at: {sound_path}")
+            
+            # List available sound files
+            sound_dir = '/app/sounds'
+            if os.path.exists(sound_dir):
+                logger.info(f"Available sound files: {os.listdir(sound_dir)}")
+            else:
+                logger.error(f"Sound directory does not exist: {sound_dir}")
+            
             if not os.path.exists(sound_path):
                 logger.error(f"Sound file not found: {sound_path}")
-                return jsonify({'error': 'Sound file not found'}), 404
+                return jsonify({'error': f'Sound file not found: {sound_name}'}), 404
             
             final_video_path = processor.mix_audio(
                 temp_video.name,
@@ -84,7 +99,7 @@ def upload_video():
 
         # Prepare caption with hashtags
         caption = description
-        if hashtags and hashtags[0]:  # Only add hashtags if the list is not empty and first element is not empty
+        if hashtags:  # Only add hashtags if the list is not empty
             caption += ' ' + ' '.join(f'#{tag.strip()}' for tag in hashtags if tag.strip())
         logger.info(f"Prepared caption: {caption}")
 
