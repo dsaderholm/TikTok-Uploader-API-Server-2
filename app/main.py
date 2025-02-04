@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 import os
 import sys
+import subprocess
 from tiktok_client import TikTokClient
 from audio_processor import AudioProcessor
 import tempfile
@@ -15,11 +16,6 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# Add a test route
-@app.route('/')
-def test():
-    return jsonify({"status": "server is running"})
-
 # Configuration
 UPLOAD_FOLDER = '/app/VideosDirPath'
 ALLOWED_EXTENSIONS = {'mp4', 'mov'}
@@ -33,6 +29,31 @@ def clean_string(s):
     if isinstance(s, str):
         return s.strip("'\"")
     return s
+
+def verify_video_file(filepath):
+    """Verify that the video file is valid using ffprobe"""
+    try:
+        logger.info(f"Verifying video file: {filepath}")
+        # Print file size
+        file_size = os.path.getsize(filepath)
+        logger.info(f"Video file size: {file_size} bytes")
+        
+        # Try to read file header
+        with open(filepath, 'rb') as f:
+            header = f.read(32)
+            logger.info(f"File header (hex): {header.hex()}")
+        
+        # Run ffprobe
+        cmd = ['ffprobe', '-v', 'error', filepath]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            logger.error(f"FFprobe error: {result.stderr}")
+            return False
+        return True
+    except Exception as e:
+        logger.error(f"Error verifying video: {str(e)}")
+        return False
 
 @app.route('/upload', methods=['POST'])
 def upload_video():
@@ -70,6 +91,10 @@ def upload_video():
         temp_files.append(temp_video.name)
         video.save(temp_video.name)
         logger.info(f"Video saved temporarily to {temp_video.name}")
+
+        # Verify video file integrity
+        if not verify_video_file(temp_video.name):
+            return jsonify({'error': 'Invalid or corrupted video file'}), 400
 
         # Process audio if sound is specified
         final_video_path = temp_video.name
