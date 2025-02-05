@@ -6,6 +6,7 @@ from tiktok_client import TikTokClient
 from audio_processor import AudioProcessor
 import tempfile
 import logging
+import traceback
 
 # Add TikTok Uploader to path
 sys.path.append('/app/TiktokAutoUploader')
@@ -16,6 +17,14 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# Add CORS support
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
+    return response
+
 # Configuration
 UPLOAD_FOLDER = '/app/VideosDirPath'
 ALLOWED_EXTENSIONS = {'mp4', 'mov'}
@@ -25,35 +34,17 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def clean_string(s):
-    """Remove surrounding quotes from string"""
+    """Remove surrounding quotes and curly braces from string"""
     if isinstance(s, str):
-        return s.strip("'\"")
+        s = s.strip("'\"")
+        # Also remove curly braces if they're used as template markers
+        s = s.replace('{', '').replace('}', '')
     return s
 
-def verify_video_file(filepath):
-    """Verify that the video file is valid using ffprobe"""
-    try:
-        logger.info(f"Verifying video file: {filepath}")
-        # Print file size
-        file_size = os.path.getsize(filepath)
-        logger.info(f"Video file size: {file_size} bytes")
-        
-        # Try to read file header
-        with open(filepath, 'rb') as f:
-            header = f.read(32)
-            logger.info(f"File header (hex): {header.hex()}")
-        
-        # Run ffprobe
-        cmd = ['ffprobe', '-v', 'error', filepath]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        
-        if result.returncode != 0:
-            logger.error(f"FFprobe error: {result.stderr}")
-            return False
-        return True
-    except Exception as e:
-        logger.error(f"Error verifying video: {str(e)}")
-        return False
+@app.route('/ping', methods=['GET'])
+def ping():
+    """Simple health check endpoint"""
+    return jsonify({"status": "ok", "message": "Server is running"})
 
 @app.route('/upload', methods=['POST'])
 def upload_video():
@@ -61,40 +52,72 @@ def upload_video():
     temp_files = []  # Keep track of temporary files to clean up
 
     try:
-        # Log request details
-        logger.info(f"Files in request: {request.files}")
-        logger.info(f"Form data in request: {request.form}")
-        
+        # Log complete request information
+        logger.info("Request Headers:")
+        for header, value in request.headers.items():
+            logger.info(f"{header}: {value}")
+
+        logger.info("Request Files:")
+        for key in request.files:
+            file = request.files[key]
+            logger.info(f"File {key}: {file.filename} ({file.content_type})")
+
+        logger.info("Request Form Data:")
+        for key in request.form:
+            logger.info(f"{key}: {request.form[key]}")
+
         # Check if video file is provided
         if 'video' not in request.files:
             logger.error("No video file in request")
             return jsonify({'error': 'No video file provided'}), 400
         
         video = request.files['video']
-        if not video or not allowed_file(video.filename):
-            logger.error(f"Invalid video file: {video.filename if video else 'None'}")
+        if not video or not video.filename:
+            logger.error("Invalid video file: no filename")
             return jsonify({'error': 'Invalid video file'}), 400
 
-        # Get parameters and clean them
+        if not allowed_file(video.filename):
+            logger.error(f"Invalid video file type: {video.filename}")
+            return jsonify({'error': 'Invalid file type. Allowed types: mp4, mov'}), 400
+
+        # Get and clean parameters
         description = clean_string(request.form.get('description', ''))
         accountname = clean_string(request.form.get('accountname'))
-        hashtags = [clean_string(tag) for tag in request.form.get('hashtags', '').split(',') if tag.strip()]
+        hashtags = clean_string(request.form.get('hashtags', ''))
         sound_name = clean_string(request.form.get('sound_name'))
         sound_aud_vol = clean_string(request.form.get('sound_aud_vol', 'mix'))
+
+        logger.info(f"Cleaned parameters:")
+        logger.info(f"Description: {description}")
+        logger.info(f"Account Name: {accountname}")
+        logger.info(f"Hashtags: {hashtags}")
+        logger.info(f"Sound Name: {sound_name}")
+        logger.info(f"Sound Volume: {sound_aud_vol}")
 
         if not accountname:
             logger.error("No account name provided")
             return jsonify({'error': 'Account name is required'}), 400
 
-        # Save video temporarily
-        temp_video = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-        temp_files.append(temp_video.name)
-        video.save(temp_video.name)
-        logger.info(f"Video saved temporarily to {temp_video.name}")
+        # Save video with proper error handling
+        try:
+            temp_video = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+            temp_files.append(temp_video.name)
+            video.save(temp_video.name)
+            logger.info(f"Video saved temporarily to {temp_video.name}")
 
-        # Verify video file integrity
-        if not verify_video_file(temp_video.name):
-            return jsonify({'error': 'Invalid or corrupted video file'}), 400
+            # Verify file was saved and is not empty
+            if not os.path.exists(temp_video.name):
+                raise Exception("Failed to save video file")
+            
+            file_size = os.path.getsize(temp_video.name)
+            if file_size == 0:
+                raise Exception("Saved video file is empty")
+                
+            logger.info(f"Saved video file size: {file_size} bytes")
+            
+        except Exception as e:
+            logger.error(f"Error saving video: {str(e)}")
+            return jsonify({'error': f'Error saving video: {str(e)}'}), 500
 
         # Process audio if sound is specified
         final_video_path = temp_video.name
@@ -114,33 +137,44 @@ def upload_video():
                 logger.error(f"Sound file not found: {sound_path}")
                 return jsonify({'error': f'Sound file not found: {sound_name}'}), 404
             
-            final_video_path = processor.mix_audio(
-                temp_video.name,
-                sound_path,
-                sound_aud_vol
-            )
-            temp_files.append(final_video_path)
-            logger.info(f"Audio processed, new video path: {final_video_path}")
+            try:
+                final_video_path = processor.mix_audio(
+                    temp_video.name,
+                    sound_path,
+                    sound_aud_vol
+                )
+                temp_files.append(final_video_path)
+                logger.info(f"Audio processed, new video path: {final_video_path}")
+            except Exception as e:
+                logger.error(f"Error processing audio: {str(e)}")
+                return jsonify({'error': f'Error processing audio: {str(e)}'}), 500
 
         # Prepare caption with hashtags
         caption = description
-        if hashtags:  # Only add hashtags if the list is not empty
-            caption += ' ' + ' '.join(f'#{tag.strip()}' for tag in hashtags if tag.strip())
-        logger.info(f"Prepared caption: {caption}")
+        if hashtags:
+            caption += ' ' + ' '.join(f'#{tag.strip()}' for tag in hashtags.split(',') if tag.strip())
+        logger.info(f"Final caption: {caption}")
 
-        # Upload to TikTok
-        client = TikTokClient(accountname)
-        result = client.upload_video(final_video_path, caption)
-        logger.info(f"Upload result: {result}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Video uploaded successfully',
-            'result': result
-        })
+        # Upload to TikTok with proper error handling
+        try:
+            client = TikTokClient(accountname)
+            result = client.upload_video(final_video_path, caption)
+            logger.info(f"Upload result: {result}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Video uploaded successfully',
+                'result': result
+            })
+            
+        except Exception as e:
+            logger.error(f"Error in TikTok upload: {str(e)}")
+            logger.error(traceback.format_exc())
+            return jsonify({'error': f'TikTok upload error: {str(e)}'}), 500
 
     except Exception as e:
-        logger.error(f"Error in upload_video: {str(e)}", exc_info=True)
+        logger.error(f"Unexpected error in upload_video: {str(e)}")
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
     
     finally:
