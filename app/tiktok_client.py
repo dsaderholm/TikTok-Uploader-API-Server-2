@@ -45,7 +45,10 @@ TIKTOK_BASE_URL = "https://www.tiktok.com/upload?lang="
         
         if os.path.exists(source_cookie):
             logger.info(f"Copying cookie from {source_cookie} to {dest_cookie}")
+            # Copy the file with original permissions preserved
             shutil.copy2(source_cookie, dest_cookie)
+            # Ensure the file is readable
+            os.chmod(dest_cookie, 0o644)
             # Read and log first few bytes of cookie file
             with open(dest_cookie, 'rb') as f:
                 content = f.read(100)
