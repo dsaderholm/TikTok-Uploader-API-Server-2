@@ -23,13 +23,17 @@ class TikTokClient:
         logger.info(f"Videos Directory: {os.path.join(self.tiktok_uploader_path, self.videos_dir)}")
         logger.info(f"Cookies Directory: {os.path.join(self.tiktok_uploader_path, self.cookies_dir)}")
 
-        # Setup config.txt with absolute paths
+        # Setup config.txt with proper format
         config_path = os.path.join(self.tiktok_uploader_path, 'config.txt')
         logger.info("Creating config.txt")
-        videos_dir_path = os.path.join(self.tiktok_uploader_path, self.videos_dir)
-        cookies_dir_path = os.path.join(self.tiktok_uploader_path, self.cookies_dir)
+        config_content = """COOKIES_DIR = "./CookiesDir"
+VIDEOS_DIR = "./VideosDirPath"
+POST_PROCESSING_VIDEO_PATH = "./VideosDirPath"
+LANG = "en"
+TIKTOK_BASE_URL = "https://www.tiktok.com/upload?lang="
+"""
         with open(config_path, 'w') as f:
-            f.write(f'videos_dir={videos_dir_path}\ncookies_dir={cookies_dir_path}')
+            f.write(config_content)
         
         logger.info(f"Config contents:")
         with open(config_path, 'r') as f:
