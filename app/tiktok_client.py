@@ -11,8 +11,8 @@ class TikTokClient:
     def __init__(self, username):
         self.username = username
         self.tiktok_uploader_path = '/app/TiktokAutoUploader'
-        self.videos_dir = 'VideosDirPath'  # Changed to relative path
-        self.cookies_dir = 'CookiesDir'    # Changed to relative path
+        self.videos_dir = 'VideosDirPath'
+        self.cookies_dir = 'CookiesDir'
         
         # Create directories in TikTok uploader directory
         os.makedirs(os.path.join(self.tiktok_uploader_path, self.videos_dir), exist_ok=True)
@@ -23,8 +23,11 @@ class TikTokClient:
         logger.info(f"Videos Directory: {os.path.join(self.tiktok_uploader_path, self.videos_dir)}")
         logger.info(f"Cookies Directory: {os.path.join(self.tiktok_uploader_path, self.cookies_dir)}")
 
+        # Change to TikTok uploader directory
+        os.chdir(self.tiktok_uploader_path)
+
         # Setup config.txt with absolute paths
-        config_path = os.path.join(self.tiktok_uploader_path, 'config.txt')
+        config_path = 'config.txt'  # Changed to relative path since we changed directory
         logger.info("Creating config.txt")
         videos_dir = os.path.join(self.tiktok_uploader_path, 'VideosDirPath')
         cookies_dir = os.path.join(self.tiktok_uploader_path, 'CookiesDir')
@@ -43,7 +46,7 @@ TIKTOK_BASE_URL = "https://www.tiktok.com/upload?lang="
 
         # Copy and rename cookie file from mounted volume to TikTok uploader's CookiesDir
         source_cookie = f'/app/CookiesDir/tiktok_session-{username}.cookie'
-        dest_cookie = os.path.join(self.tiktok_uploader_path, self.cookies_dir, f'tiktok_session-{username}')
+        dest_cookie = os.path.join(self.tiktok_uploader_path, self.cookies_dir, f'tiktok_session-{username}.cookie')
         
         if os.path.exists(source_cookie):
             logger.info(f"Copying cookie from {source_cookie} to {dest_cookie}")
@@ -67,7 +70,7 @@ TIKTOK_BASE_URL = "https://www.tiktok.com/upload?lang="
             logger.info(f"Contents of Cookies directory: {os.listdir(os.path.join(self.tiktok_uploader_path, self.cookies_dir))}")
             
             # Log specific cookie file info
-            cookie_path = os.path.join(self.tiktok_uploader_path, self.cookies_dir, f'tiktok_session-{self.username}')
+            cookie_path = os.path.join(self.tiktok_uploader_path, self.cookies_dir, f'tiktok_session-{self.username}.cookie')
             if os.path.exists(cookie_path):
                 logger.info(f"Cookie file exists at {cookie_path}, size: {os.path.getsize(cookie_path)} bytes")
                 with open(cookie_path, 'rb') as f:
@@ -78,7 +81,6 @@ TIKTOK_BASE_URL = "https://www.tiktok.com/upload?lang="
             
             result = subprocess.run(
                 command,
-                cwd=self.tiktok_uploader_path,
                 check=True,
                 capture_output=True,
                 text=True,
