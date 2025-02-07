@@ -23,12 +23,14 @@ class TikTokClient:
         logger.info(f"Videos Directory: {os.path.join(self.tiktok_uploader_path, self.videos_dir)}")
         logger.info(f"Cookies Directory: {os.path.join(self.tiktok_uploader_path, self.cookies_dir)}")
 
-        # Setup config.txt with proper format
+        # Setup config.txt with absolute paths
         config_path = os.path.join(self.tiktok_uploader_path, 'config.txt')
         logger.info("Creating config.txt")
-        config_content = """COOKIES_DIR = "./CookiesDir"
-VIDEOS_DIR = "./VideosDirPath"
-POST_PROCESSING_VIDEO_PATH = "./VideosDirPath"
+        videos_dir = os.path.join(self.tiktok_uploader_path, 'VideosDirPath')
+        cookies_dir = os.path.join(self.tiktok_uploader_path, 'CookiesDir')
+        config_content = f"""COOKIES_DIR = "{cookies_dir}"
+VIDEOS_DIR = "{videos_dir}"
+POST_PROCESSING_VIDEO_PATH = "{videos_dir}"
 LANG = "en"
 TIKTOK_BASE_URL = "https://www.tiktok.com/upload?lang="
 """
@@ -45,11 +47,8 @@ TIKTOK_BASE_URL = "https://www.tiktok.com/upload?lang="
         
         if os.path.exists(source_cookie):
             logger.info(f"Copying cookie from {source_cookie} to {dest_cookie}")
-            # Copy the file with original permissions preserved
             shutil.copy2(source_cookie, dest_cookie)
-            # Ensure the file is readable
-            os.chmod(dest_cookie, 0o644)
-            # Read and log first few bytes of cookie file
+            # Log cookie file contents
             with open(dest_cookie, 'rb') as f:
                 content = f.read(100)
                 logger.info(f"First 100 bytes of cookie file: {content}")
