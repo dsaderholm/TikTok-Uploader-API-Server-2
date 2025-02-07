@@ -23,15 +23,17 @@ class TikTokClient:
         logger.info(f"Videos Directory: {os.path.join(self.tiktok_uploader_path, self.videos_dir)}")
         logger.info(f"Cookies Directory: {os.path.join(self.tiktok_uploader_path, self.cookies_dir)}")
 
-        # Setup config.txt with relative paths
-        config_path = os.path.join(self.tiktok_uploader_path, 'config.txt')
-        logger.info("Creating config.txt")
-        with open(config_path, 'w') as f:
-            f.write('videos_dir=VideosDirPath\ncookies_dir=CookiesDir')
-        
-        logger.info(f"Config contents:")
-        with open(config_path, 'r') as f:
-            logger.info(f.read())
+        # Setup config.txt with absolute paths
+                config_path = os.path.join(self.tiktok_uploader_path, 'config.txt')
+                logger.info("Creating config.txt")
+                videos_dir_path = os.path.join(self.tiktok_uploader_path, self.videos_dir)
+                cookies_dir_path = os.path.join(self.tiktok_uploader_path, self.cookies_dir)
+                with open(config_path, 'w') as f:
+                    f.write(f'videos_dir={videos_dir_path}\ncookies_dir={cookies_dir_path}')
+                
+                logger.info(f"Config contents:")
+                with open(config_path, 'r') as f:
+                    logger.info(f.read())
 
         # Copy and rename cookie file from mounted volume to TikTok uploader's CookiesDir
         source_cookie = f'/app/CookiesDir/tiktok_session-{username}.cookie'
