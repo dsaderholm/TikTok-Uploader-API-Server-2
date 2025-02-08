@@ -152,7 +152,8 @@ def upload_video():
         # Prepare caption with hashtags
         caption = description
         if hashtags:
-            caption += ' ' + ' '.join(f'#{tag.strip()}' for tag in hashtags.split(',') if tag.strip())
+            # Simply append the hashtags as they already include the # symbol
+            caption += ' ' + ' '.join(tag.strip() for tag in hashtags.split(',') if tag.strip())
         logger.info(f"Final caption: {caption}")
 
         # Upload to TikTok with proper error handling
