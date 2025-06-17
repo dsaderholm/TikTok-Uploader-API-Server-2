@@ -13,7 +13,6 @@ RUN apt-get update && apt-get install -y \
     nodejs \
     npm \
     xvfb \
-    ffmpeg \
     python3-dev \
     libjpeg-dev \
     libpng-dev \
@@ -74,7 +73,6 @@ RUN pip install --no-cache-dir -r /app/TiktokAutoUploader/requirements.txt
 
 # Copy application code
 COPY app/ ./app/
-COPY sounds/ ./sounds/
 
 # Create necessary directories in TikTok uploader directory
 RUN mkdir -p /app/TiktokAutoUploader/VideosDirPath \

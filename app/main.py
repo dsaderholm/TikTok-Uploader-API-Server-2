@@ -3,7 +3,7 @@ import os
 import sys
 import subprocess
 from tiktok_client import TikTokClient
-from audio_processor import AudioProcessor
+
 import tempfile
 import logging
 import traceback
@@ -84,15 +84,11 @@ def upload_video():
         description = clean_string(request.form.get('description', ''))
         accountname = clean_string(request.form.get('accountname'))
         hashtags = clean_string(request.form.get('hashtags', ''))
-        sound_name = clean_string(request.form.get('sound_name'))
-        sound_aud_vol = clean_string(request.form.get('sound_aud_vol', 'mix'))
 
         logger.info(f"Cleaned parameters:")
         logger.info(f"Description: {description}")
         logger.info(f"Account Name: {accountname}")
         logger.info(f"Hashtags: {hashtags}")
-        logger.info(f"Sound Name: {sound_name}")
-        logger.info(f"Sound Volume: {sound_aud_vol}")
 
         if not accountname:
             logger.error("No account name provided")
@@ -119,35 +115,8 @@ def upload_video():
             logger.error(f"Error saving video: {str(e)}")
             return jsonify({'error': f'Error saving video: {str(e)}'}), 500
 
-        # Process audio if sound is specified
+        # Use the original video without audio processing
         final_video_path = temp_video.name
-        if sound_name:
-            processor = AudioProcessor()
-            sound_path = f'/app/sounds/{sound_name}.mp3'
-            logger.info(f"Looking for sound file at: {sound_path}")
-            
-            # List available sound files
-            sound_dir = '/app/sounds'
-            if os.path.exists(sound_dir):
-                logger.info(f"Available sound files: {os.listdir(sound_dir)}")
-            else:
-                logger.error(f"Sound directory does not exist: {sound_dir}")
-            
-            if not os.path.exists(sound_path):
-                logger.error(f"Sound file not found: {sound_path}")
-                return jsonify({'error': f'Sound file not found: {sound_name}'}), 404
-            
-            try:
-                final_video_path = processor.mix_audio(
-                    temp_video.name,
-                    sound_path,
-                    sound_aud_vol
-                )
-                temp_files.append(final_video_path)
-                logger.info(f"Audio processed, new video path: {final_video_path}")
-            except Exception as e:
-                logger.error(f"Error processing audio: {str(e)}")
-                return jsonify({'error': f'Error processing audio: {str(e)}'}), 500
 
         # Prepare caption with hashtags
         caption = description
