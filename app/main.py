@@ -83,12 +83,10 @@ def upload_video():
         # Get and clean parameters
         description = clean_string(request.form.get('description', ''))
         accountname = clean_string(request.form.get('accountname'))
-        hashtags = clean_string(request.form.get('hashtags', ''))
 
         logger.info(f"Cleaned parameters:")
         logger.info(f"Description: {description}")
         logger.info(f"Account Name: {accountname}")
-        logger.info(f"Hashtags: {hashtags}")
 
         if not accountname:
             logger.error("No account name provided")
@@ -118,11 +116,8 @@ def upload_video():
         # Use the original video without audio processing
         final_video_path = temp_video.name
 
-        # Prepare caption with hashtags
+        # Use description as-is without hashtag processing
         caption = description
-        if hashtags:
-            # Simply append the hashtags as they already include the # symbol
-            caption += ' ' + ' '.join(tag.strip() for tag in hashtags.split(',') if tag.strip())
         logger.info(f"Final caption: {caption}")
 
         # Upload to TikTok with proper error handling
