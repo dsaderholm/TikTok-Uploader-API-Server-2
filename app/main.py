@@ -5,6 +5,7 @@ from tiktok_client import TikTokClient
 import tempfile
 import logging
 import traceback
+import threading
 
 # Add TikTok Uploader to path
 sys.path.append('/app/TiktokAutoUploader')
@@ -14,6 +15,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
+# Global lock to prevent concurrent uploads
+upload_lock = threading.Lock()
+upload_in_progress = False
 
 # Add CORS support
 @app.after_request
@@ -29,14 +34,30 @@ ALLOWED_EXTENSIONS = {'mp4', 'mov'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-
 @app.route('/ping', methods=['GET'])
 def ping():
     """Simple health check endpoint"""
     return jsonify({"status": "ok", "message": "Server is running"})
 
+@app.route('/status', methods=['GET'])
+def get_status():
+    """Get current upload status"""
+    return jsonify({
+        "upload_in_progress": upload_in_progress,
+        "service": "TikTok Uploader API v2"
+    }), 200
+
 @app.route('/upload', methods=['POST'])
 def upload_video():
+    global upload_in_progress
+    
+    # Check if upload is already in progress
+    with upload_lock:
+        if upload_in_progress:
+            logger.warning("Upload already in progress, rejecting request")
+            return jsonify({"error": "Upload already in progress. Please wait."}), 429
+        upload_in_progress = True
+    
     logger.info("Received upload request")
     temp_files = []  # Keep track of temporary files to clean up
 
@@ -111,6 +132,10 @@ def upload_video():
         return jsonify({'error': str(e)}), 500
     
     finally:
+        # Always reset the upload flag
+        with upload_lock:
+            upload_in_progress = False
+            
         # Cleanup temporary files
         for temp_file in temp_files:
             try:
