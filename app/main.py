@@ -1,9 +1,7 @@
 from flask import Flask, request, jsonify
 import os
 import sys
-import subprocess
 from tiktok_client import TikTokClient
-
 import tempfile
 import logging
 import traceback
@@ -26,20 +24,11 @@ def after_request(response):
     return response
 
 # Configuration
-UPLOAD_FOLDER = '/app/VideosDirPath'
 ALLOWED_EXTENSIONS = {'mp4', 'mov'}
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def clean_string(s):
-    """Remove surrounding quotes and curly braces from string"""
-    if isinstance(s, str):
-        s = s.strip("'\"")
-        # Also remove curly braces if they're used as template markers
-        s = s.replace('{', '').replace('}', '')
-    return s
 
 @app.route('/ping', methods=['GET'])
 def ping():
@@ -52,44 +41,24 @@ def upload_video():
     temp_files = []  # Keep track of temporary files to clean up
 
     try:
-        # Log complete request information
-        logger.info("Request Headers:")
-        for header, value in request.headers.items():
-            logger.info(f"{header}: {value}")
-
-        logger.info("Request Files:")
-        for key in request.files:
-            file = request.files[key]
-            logger.info(f"File {key}: {file.filename} ({file.content_type})")
-
-        logger.info("Request Form Data:")
-        for key in request.form:
-            logger.info(f"{key}: {request.form[key]}")
-
         # Check if video file is provided
         if 'video' not in request.files:
-            logger.error("No video file in request")
             return jsonify({'error': 'No video file provided'}), 400
         
         video = request.files['video']
         if not video or not video.filename:
-            logger.error("Invalid video file: no filename")
             return jsonify({'error': 'Invalid video file'}), 400
 
         if not allowed_file(video.filename):
-            logger.error(f"Invalid video file type: {video.filename}")
             return jsonify({'error': 'Invalid file type. Allowed types: mp4, mov'}), 400
 
-        # Get and clean parameters
-        description = clean_string(request.form.get('description', ''))
-        accountname = clean_string(request.form.get('accountname'))
+        # Get parameters
+        description = request.form.get('description', '')
+        accountname = request.form.get('accountname')
 
-        logger.info(f"Cleaned parameters:")
-        logger.info(f"Description: {description}")
-        logger.info(f"Account Name: {accountname}")
+        logger.info(f"Processing upload for account: {accountname}")
 
         if not accountname:
-            logger.error("No account name provided")
             return jsonify({'error': 'Account name is required'}), 400
 
         # Save video with proper error handling
@@ -113,12 +82,11 @@ def upload_video():
             logger.error(f"Error saving video: {str(e)}")
             return jsonify({'error': f'Error saving video: {str(e)}'}), 500
 
-        # Use the original video without audio processing
+        # Use the original video without processing
         final_video_path = temp_video.name
 
-        # Use description as-is without hashtag processing
+        # Use description as caption
         caption = description
-        logger.info(f"Final caption: {caption}")
 
         # Upload to TikTok with proper error handling
         try:
@@ -152,9 +120,4 @@ def upload_video():
                 logger.error(f"Error cleaning up {temp_file}: {str(e)}")
 
 if __name__ == '__main__':
-    # Add startup logging
-    logger.info("Starting Flask server...")
-    logger.info("Registered routes:")
-    logger.info(app.url_map)
-    
     app.run(host='0.0.0.0', port=8048)
